@@ -1,0 +1,59 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios-app/**'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build:
+    # macos-latest = Xcode 26 (necessaire pour le deployment target iOS 26 du projet)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verifier la version de Xcode
+        run: xcodebuild -version
+
+      - name: Installer XcodeGen
+        run: brew install xcodegen
+
+      - name: Generer le projet Xcode
+        working-directory: ios-app
+        run: xcodegen generate
+
+      - name: Compiler sans signature
+        working-directory: ios-app
+        run: |
+          xcodebuild \
+            -project AncsBridge.xcodeproj \
+            -scheme AncsBridge \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Empaqueter en IPA non signe
+        working-directory: ios-app
+        run: |
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/AncsBridge.app out/Payload/
+          cd out
+          zip -qr WearBridge-unsigned.ipa Payload
+          ls -lh WearBridge-unsigned.ipa
+
+      - name: Publier l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WearBridge-unsigned-ipa
+          path: ios-app/out/WearBridge-unsigned.ipa
+          if-no-files-found: error

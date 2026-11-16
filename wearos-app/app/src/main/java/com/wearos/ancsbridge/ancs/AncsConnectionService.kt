@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.telecom.Connection
@@ -34,6 +35,9 @@ class AncsConnectionService : ConnectionService() {
         var activeConnection: AncsCallConnection? = null
             private set
 
+        fun isTelecomSupported(context: Context): Boolean =
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELECOM)
+
         fun getPhoneAccountHandle(context: Context): PhoneAccountHandle {
             return PhoneAccountHandle(
                 ComponentName(context, AncsConnectionService::class.java),
@@ -52,7 +56,7 @@ class AncsConnectionService : ConnectionService() {
                 .build()
 
             val telecomManager = context.getSystemService(TelecomManager::class.java)
-            telecomManager.registerPhoneAccount(account)
+            if (isTelecomSupported(context)) telecomManager.registerPhoneAccount(account)
             Log.i(TAG, "Registered PhoneAccount for WearBridge")
         }
 
